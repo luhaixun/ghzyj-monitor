@@ -1,0 +1,32 @@
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Matched Links</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
+        <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
+        <style>
+            table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; }
+            th { cursor: pointer; background-color: #f9f9f9; }
+        </style>
+    </head>
+    <body>
+        <h1>Matched Links Dashboard</h1>
+        <table id="sortableTable">
+            <thead>
+                <tr>
+                    <th>公告</th>
+                    <th>日期</th>
+                </tr>
+            </thead>
+            <tbody>
+<tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202503/t20250312_1210590.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第10号）</a></td><td>2025年03月12日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202503/t20250312_1210588.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第11号）</a></td><td>2025年03月12日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202503/t20250312_1210586.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第12号）</a></td><td>2025年03月12日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202503/t20250321_1212141.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第13号）</a></td><td>2025年03月21日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202504/t20250409_1214850.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第14号）</a></td><td>2025年04月09日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202504/t20250409_1214849.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第15号）</a></td><td>2025年04月09日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202504/t20250409_1214848.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第16号）</a></td><td>2025年04月09日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202504/t20250418_1216372.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第17号）</a></td><td>2025年04月18日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202504/t20250424_1217339.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第18号）</a></td><td>2025年04月24日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202502/t20250208_1205787.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第7号）</a></td><td>2025年02月08日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202502/t20250208_1205786.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第8号）</a></td><td>2025年02月08日</td></tr><tr><td><a href="https://hd.ghzyj.sh.gov.cn/gsgg/zdgg/mh/202502/t20250220_1207601.html" target="_blank">上海市闵行区人民政府征收土地方案公告（沪（闵）征地告〔2025〕第9号）</a></td><td>2025年02月20日</td></tr>    </tbody>
+        </table>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var table = new Tablesort(document.getElementById('sortableTable'));
+                table.sort(1, true); // descending by date
+            });
+        </script>
+    </body>
+    </html>

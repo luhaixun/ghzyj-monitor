@@ -4,7 +4,6 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
@@ -30,7 +29,6 @@ public class DynamicScraperService {
     @Getter
     private final Map<String, String> linksDate = new HashMap<>();
 
-    @Scheduled(fixedRate = 1000 * 60 * 60 * 12) // every 12 hours
     public void scrape() {
         matchedLinks.clear();
         try (Playwright playwright = Playwright.create()) {
@@ -69,6 +67,7 @@ public class DynamicScraperService {
 
             browser.close();
             writeStaticHtml("docs/dashboard.html");
+            System.exit(0);
         } catch (Exception e) {
             log.error("Scraping failed. error: {}", e.getMessage());
         }
@@ -113,7 +112,8 @@ public class DynamicScraperService {
                         </table>
                         <script>
                             document.addEventListener("DOMContentLoaded", function () {
-                                new Tablesort(document.getElementById('sortableTable'));
+                                var table = new Tablesort(document.getElementById('sortableTable'));
+                                table.sort(1, true); // descending by date
                             });
                         </script>
                     </body>
