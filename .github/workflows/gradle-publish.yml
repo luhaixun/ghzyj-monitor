@@ -32,6 +32,9 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
 
+    - name: Backup Previous Dashboard
+      run: cp docs/dashboard.html docs/previous.html
+
     - name: Build with Gradle
       run: ./gradlew run
 
@@ -39,9 +42,6 @@ jobs:
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
-        git stash
-        cp docs/dashboard.html docs/dashboard_previous.html
-        git stash pop
-        git add docs/dashboard.html docs/dashboard_previous.html
+        git add docs
         git commit -m "Update dashboard [auto]" || echo "No changes to commit"
         git push
