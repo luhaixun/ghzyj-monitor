@@ -113,7 +113,9 @@ public class DynamicScraperService {
                         <script>
                             document.addEventListener("DOMContentLoaded", function () {
                                 var table = new Tablesort(document.getElementById('sortableTable'));
-                                table.sort(1, true); // descending by date
+                                setTimeout(() => {
+                                  table.sort(1, true);
+                                }, 100);
                             });
                         </script>
                     </body>
