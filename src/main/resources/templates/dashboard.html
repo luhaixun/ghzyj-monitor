@@ -1,13 +1,33 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Dashboard - 闵行 Related Links</title>
     <meta charset="UTF-8">
+    <title>Matched Links Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
 </head>
 <body>
-<h1>Links Matching '闵行'</h1>
-<ul>
-    <li th:each="link : ${links}" th:text="${link}"></li>
-</ul>
+
+<h1>Bulletin Dashboard</h1>
+
+<table>
+    <thead>
+    <tr>
+        <th>公告</th>
+        <th>日期</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="entry : ${links}">
+        <td><a th:href="${entry.value}" th:text="${entry.key}"></a></td>
+        <td th:text="${linksDate[entry.key]}"></td>
+    </tr>
+    </tbody>
+</table>
+
 </body>
 </html>

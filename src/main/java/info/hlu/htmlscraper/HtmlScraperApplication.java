@@ -1,4 +1,4 @@
-package com.example.htmlscraper;
+package info.hlu.htmlscraper;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

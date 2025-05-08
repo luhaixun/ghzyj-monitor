@@ -1,4 +1,4 @@
-package com.example.htmlscraper;
+package info.hlu.htmlscraper;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -7,15 +7,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class DashboardController {
 
-    private final ScraperService scraperService;
+    private final DynamicScraperService scraperService;
 
-    public DashboardController(ScraperService scraperService) {
+    public DashboardController(DynamicScraperService scraperService) {
         this.scraperService = scraperService;
     }
 
-    @GetMapping("/")
-    public String dashboard(Model model) {
+    @GetMapping("/dashboard")
+    public String showDashboard(Model model) {
+        // Add the map to the model for Thymeleaf
         model.addAttribute("links", scraperService.getMatchedLinks());
+        model.addAttribute("linksDate", scraperService.getLinksDate());
         return "dashboard";
     }
 }
