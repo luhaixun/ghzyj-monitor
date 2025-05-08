@@ -4,7 +4,9 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -21,7 +23,10 @@ import java.util.regex.Pattern;
 public class DynamicScraperService {
 
     private static final String BASE_URL = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/";
-    private static final int TOTAL_PAGES = 10;
+
+    @Value("${search.pages-size:-30}")
+    private int searchPagesSize;
+
     private static final String KEYWORD = "闵行";
 
     @Getter
@@ -39,7 +44,7 @@ public class DynamicScraperService {
             );
             Page page = context.newPage();
 
-            for (int pageCount = 0; pageCount <= TOTAL_PAGES; pageCount++) {
+            for (int pageCount = 0; pageCount <= searchPagesSize; pageCount++) {
                 String url = pageCount == 0 ? BASE_URL + "index.html" : BASE_URL + "index_" + pageCount + ".html";
                 long start = System.currentTimeMillis();
                 page.navigate(url);
@@ -52,7 +57,8 @@ public class DynamicScraperService {
                 for (int j = 0; j < count; j++) {
                     Locator h4 = h4s.nth(j);
                     String text = h4.textContent();
-                    if (text.contains(KEYWORD)) {
+                    // fetch all or filter by keyword
+                    if (!StringUtils.hasText(KEYWORD) || text.contains(KEYWORD)) {
                         Locator link = h4.locator("a");
                         String href = link.getAttribute("href");
                         String absUrl = URI.create(BASE_URL).resolve(href).toString();
@@ -80,7 +86,7 @@ public class DynamicScraperService {
                     <html>
                     <head>
                         <meta charset="UTF-8">
-                        <title>Matched Links</title>
+                        <title>上海市闵行区人民政府征收土地方案公告</title>
                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
                         <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
                         <style>
@@ -89,7 +95,7 @@ public class DynamicScraperService {
                         </style>
                     </head>
                     <body>
-                        <h1>Matched Links Dashboard</h1>
+                        <h1>上海市闵行区人民政府征收土地方案公告</h1>
                         <table id="sortableTable">
                             <thead>
                                 <tr>
