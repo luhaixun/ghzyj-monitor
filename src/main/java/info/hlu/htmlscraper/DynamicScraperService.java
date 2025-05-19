@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -30,7 +31,7 @@ public class DynamicScraperService {
     private static final String KEYWORD = "闵行";
 
     @Getter
-    private final Map<String, String> matchedLinks = new TreeMap<>();
+    private final Map<String, String> matchedLinks = new HashMap<>();
     @Getter
     private final Map<String, String> linksDate = new HashMap<>();
 
@@ -105,8 +106,10 @@ public class DynamicScraperService {
                             </thead>
                             <tbody>
                 """);
-        matchedLinks.forEach((text, url) -> {
-            String date = linksDate.getOrDefault(text, "Unknown");
+        linksDate.entrySet().stream().sorted(Map.Entry.<String, String>comparingByValue().reversed()).forEach(entry->{
+            String text = entry.getKey();
+            String date = entry.getValue();
+            String url = linksDate.get(text);
             html.append("<tr>")
                     .append("<td><a href=\"").append(url).append("\" target=\"_blank\">").append(text).append("</a></td>")
                     .append("<td>").append(date).append("</td>")
