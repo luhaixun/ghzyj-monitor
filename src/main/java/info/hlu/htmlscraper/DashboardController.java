@@ -15,9 +15,10 @@ public class DashboardController {
 
     @GetMapping("/dashboard")
     public String showDashboard(Model model) {
-        // Add the map to the model for Thymeleaf
-        model.addAttribute("links", scraperService.getMatchedLinks());
-        model.addAttribute("linksDate", scraperService.getLinksDate());
+        // Call scraperService.getLatestScrapedData() to get the List<ScrapedData>
+        java.util.List<ScrapedData> scrapedDataList = scraperService.getLatestScrapedData();
+        // Add the list of ScrapedData objects to the model
+        model.addAttribute("scrapedItems", scrapedDataList);
         return "dashboard";
     }
 }

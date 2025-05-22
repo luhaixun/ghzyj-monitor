@@ -2,19 +2,14 @@ package info.hlu.htmlscraper;
 
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.net.URI;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -29,14 +24,10 @@ public class DynamicScraperService {
     private int searchPagesSize;
 
     private static final String KEYWORD = "闵行";
+    private volatile List<ScrapedData> cachedScrapedData = new ArrayList<>();
 
-    @Getter
-    private final Map<String, String> matchedLinks = new HashMap<>();
-    @Getter
-    private final Map<String, String> linksDate = new HashMap<>();
-
-    public void scrape() {
-        matchedLinks.clear();
+    public List<ScrapedData> scrape() {
+        List<ScrapedData> scrapedDataList = new ArrayList<>();
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.firefox().launch(new BrowserType.LaunchOptions().setHeadless(true));
             BrowserContext context = browser.newContext(new Browser.NewContextOptions()
@@ -63,86 +54,29 @@ public class DynamicScraperService {
                         Locator link = h4.locator("a");
                         String href = link.getAttribute("href");
                         String absUrl = URI.create(BASE_URL).resolve(href).toString();
-                        matchedLinks.put(text, absUrl);
-                        linksDate.put(text, extractDateFromUrl(href));
+                        String date = extractDateFromUrl(href);
+                        scrapedDataList.add(new ScrapedData(text, absUrl, date));
                         foundLinks++;
                     }
                 }
                 log.debug("Found matching links {} out of {} from page {}", foundLinks, count, pageCount);
             }
-            log.info("Scraping complete. Found {} matched links.", matchedLinks.size());
+            log.info("Scraping complete. Found {} matched links.", scrapedDataList.size());
 
             browser.close();
-            writeStaticHtml("docs/dashboard.html");
-            System.exit(0);
         } catch (Exception e) {
             log.error("Scraping failed. error: {}", e.getMessage());
         }
+        this.cachedScrapedData = new ArrayList<>(scrapedDataList); // Update cache
+        return scrapedDataList;
     }
 
-    private void writeStaticHtml(String output) {
-        StringBuilder html = new StringBuilder();
-        html.append("""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>上海市闵行区人民政府征收土地方案公告</title>
-                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
-                        <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
-                        <style>
-                            table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; }
-                            th { cursor: pointer; background-color: #f9f9f9; }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>上海市闵行区人民政府征收土地方案公告</h1>
-                        <table id="sortableTable">
-                            <thead>
-                                <tr>
-                                    <th>公告</th>
-                                    <th>日期</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                """);
-        linksDate.entrySet().stream().sorted(Map.Entry.<String, String>comparingByValue().reversed()).forEach(entry->{
-            String text = entry.getKey();
-            String date = entry.getValue();
-            String url = linksDate.get(text);
-            html.append("<tr>")
-                    .append("<td><a href=\"").append(url).append("\" target=\"_blank\">").append(text).append("</a></td>")
-                    .append("<td>").append(date).append("</td>")
-                    .append("</tr>");
-        });
-
-        html.append("""
-                    </tbody>
-                        </table>
-                        <script>
-                            document.addEventListener("DOMContentLoaded", function () {
-                                var table = new Tablesort(document.getElementById('sortableTable'));
-                                setTimeout(() => {
-                                  table.sort(1, true);
-                                }, 100);
-                            });
-                        </script>
-                    </body>
-                    </html>
-                """);
-
-        try {
-            String outputPath = Paths.get(output).toString(); // for GitHub Pages
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath))) {
-                writer.write(html.toString());
-            }
-            log.info("Static dashboard written to: {}", outputPath);
-        } catch (Exception e) {
-            log.error("Failed to write static dashboard HTML: {}", e.getMessage(), e);
-        }
+    public List<ScrapedData> getLatestScrapedData() {
+        return new ArrayList<>(this.cachedScrapedData); // Return a copy
     }
 
-    private static String extractDateFromUrl(String url) {
+    // Changed from private static to package-private static for testing
+    static String extractDateFromUrl(String url) {
         // Regex to match tYYYYMMDD_ pattern
         Pattern pattern = Pattern.compile("t(\\d{4})(\\d{2})(\\d{2})_");
         Matcher matcher = pattern.matcher(url);
