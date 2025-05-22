@@ -2,38 +2,40 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Matched Links Dashboard</title>
+    <title>上海市闵行区人民政府征收土地方案公告</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
+    <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-        th { background-color: #f2f2f2; }
+        table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; }
+        th { cursor: pointer; background-color: #f9f9f9; }
     </style>
 </head>
 <body>
-
-<h1>Bulletin Dashboard</h1>
-
-<table id="sortableTable">
-    <thead>
-    <tr>
-        <th>公告</th>
-        <th>日期</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr th:each="entry : ${links}">
-        <td><a th:href="${entry.value}" th:text="${entry.key}" target="_blank"></a></td>
-        <td th:text="${linksDate[entry.key]}"></td>
-    </tr>
-    </tbody>
-</table>
-<script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        var table = new Tablesort(document.getElementById('sortableTable'));
-        table.sort(1, true); // descending by date
-    });
-</script>
+    <h1>上海市闵行区人民政府征收土地方案公告</h1>
+    <table id="sortableTable">
+        <thead>
+            <tr>
+                <th>公告</th>
+                <th>日期</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="item : ${scrapedItems}">
+                <td><a th:href="${item.url}" th:text="${item.text}" target="_blank"></a></td>
+                <td th:text="${item.date}"></td>
+            </tr>
+        </tbody>
+    </table>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var table = new Tablesort(document.getElementById('sortableTable'));
+            setTimeout(() => {
+              const dateColumnTh = document.querySelectorAll('#sortableTable th')[1];
+              if (dateColumnTh) {
+                table.sort(dateColumnTh, 'desc');
+              }
+            }, 100);
+        });
+    </script>
 </body>
 </html>
