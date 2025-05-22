@@ -14,7 +14,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
+import java.util.HashSet; // Added import
 import java.util.List;
+import java.util.Set; // Added import
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,34 +81,50 @@ class DynamicScraperServiceTest {
 
     @Test
     void testScrapeSuccessful() {
-        // Mock locators for a single item
+        // 1. Set an initial state for cachedScrapedData (n-1 scrape results)
+        List<ScrapedData> initialCachedItems = new ArrayList<>();
+        String oldCachedUrl = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/old_cached.html";
+        initialCachedItems.add(new ScrapedData("Old Cached Text", oldCachedUrl, "old_date"));
+        ReflectionTestUtils.setField(dynamicScraperService, "cachedScrapedData", new ArrayList<>(initialCachedItems));
+        // Ensure processedItemIdentifiers is empty before this specific scrape call updates it
+        ReflectionTestUtils.setField(dynamicScraperService, "processedItemIdentifiers", new HashSet<>());
+
+        // 2. Mock Playwright to return a new item for the current scrape
+        String newScrapedItemHref = "t20230101_test.html";
+        String newScrapedItemAbsUrl = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/" + newScrapedItemHref;
         when(mockH4sLocator.count()).thenReturn(1);
         when(mockH4sLocator.nth(0)).thenReturn(mockH4Locator);
         when(mockH4Locator.textContent()).thenReturn("Test Entry 闵行");
         when(mockH4Locator.locator("a")).thenReturn(mockALocator);
-        when(mockALocator.getAttribute("href")).thenReturn("t20230101_test.html");
+        when(mockALocator.getAttribute("href")).thenReturn(newScrapedItemHref);
 
+        // 3. Call scrape
         List<ScrapedData> result = dynamicScraperService.scrape();
 
+        // 4. Assertions on the returned list (current scrape's results)
         assertNotNull(result);
         assertEquals(1, result.size());
         ScrapedData item = result.get(0);
         assertEquals("Test Entry 闵行", item.text());
-        assertTrue(item.url().endsWith("t20230101_test.html"), "URL should end with the href value");
+        assertEquals(newScrapedItemAbsUrl, item.url());
         assertEquals("2023年01月01日", item.date());
 
-        // Verify cache update
-        List<ScrapedData> cachedData = dynamicScraperService.getLatestScrapedData();
-        assertNotNull(cachedData, "Cached data should not be null");
-        assertEquals(1, cachedData.size());
-        assertEquals("Test Entry 闵行", cachedData.get(0).text());
+        // 5. Assertions on the new state of cachedScrapedData (should be same as `result`)
+        List<ScrapedData> currentCache = dynamicScraperService.getLatestScrapedData();
+        assertNotNull(currentCache);
+        assertEquals(1, currentCache.size());
+        assertEquals(newScrapedItemAbsUrl, currentCache.get(0).url());
+
+        // 6. Assertions on the state of processedItemIdentifiers *after* the scrape
+        // It should now contain URLs from the initialCachedItems (n-1 scrape)
+        @SuppressWarnings("unchecked")
+        Set<String> processedIdsAfterScrape = (Set<String>) ReflectionTestUtils.getField(dynamicScraperService, "processedItemIdentifiers");
+        assertNotNull(processedIdsAfterScrape);
+        assertEquals(1, processedIdsAfterScrape.size(), "processedItemIdentifiers should contain the URL from the initial cachedScrapedData");
+        assertTrue(processedIdsAfterScrape.contains(oldCachedUrl), "processedItemIdentifiers should have the old cached URL");
 
         // Verify Playwright resources are closed
-        verify(mockBrowser).close(); // Verifies browser.close() was called
-        // playwright.close() is called implicitly by try-with-resources,
-        // playwrightStaticMock.verify(Playwright::close) is not standard for static mocks.
-        // We can verify our mockPlaywright's close was called if we had playwright.close();
-        // For try-with-resources, verifying browser.close() implies the block was exited.
+        verify(mockBrowser).close();
     }
     
     @Test
@@ -249,5 +267,156 @@ class DynamicScraperServiceTest {
         
         // verify(mockBrowser, never()).close(); // Browser shouldn't be opened if Playwright.create() fails
         // The static mock for Playwright.create() means mockPlaywright itself is never "closed" by our test
+    }
+
+    @Test
+    void testScrapeStopsEarlyWhenOldUrlEncountered() {
+        // 1. Setup processedItemIdentifiers with an "old" URL
+        Set<String> knownOldUrls = new HashSet<>();
+        String oldUrl = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/page1_item2_old.html";
+        knownOldUrls.add(oldUrl);
+        ReflectionTestUtils.setField(dynamicScraperService, "processedItemIdentifiers", knownOldUrls);
+
+        // 2. Mock Playwright: page 0 has item1 (new), page 1 has item1 (new), item2 (old), item3 (new, but should not be reached)
+        ReflectionTestUtils.setField(dynamicScraperService, "searchPagesSize", 1); // pages 0 and 1
+
+        Locator mockH4sPage0 = mock(Locator.class, "H4sPage0");
+        Locator mockH4sPage1 = mock(Locator.class, "H4sPage1");
+
+        // Ensure navigate is stubbed for each expected URL if specific URLs are used in verification
+        doNothing().when(mockPage).navigate(argThat(url -> url.endsWith("index.html")));
+        doNothing().when(mockPage).navigate(argThat(url -> url.endsWith("index_1.html")));
+
+
+        when(mockPage.locator(startsWith("xpath=")))
+            .thenReturn(mockH4sPage0) // For first call after navigating to page 0
+            .thenReturn(mockH4sPage1); // For second call after navigating to page 1
+
+        // Page 0: 1 new item
+        when(mockH4sPage0.count()).thenReturn(1);
+        Locator h4Page0Item0 = mock(Locator.class, "h4Page0Item0");
+        when(mockH4sPage0.nth(0)).thenReturn(h4Page0Item0);
+        when(h4Page0Item0.textContent()).thenReturn("Page 0 Item 1 闵行");
+        when(h4Page0Item0.locator("a").getAttribute("href")).thenReturn("page0_item1.html");
+
+        // Page 1: item1 (new), item2 (OLD), item3 (new, after old)
+        when(mockH4sPage1.count()).thenReturn(3);
+        Locator h4Page1Item0 = mock(Locator.class, "h4Page1Item0"); // new
+        Locator h4Page1Item1 = mock(Locator.class, "h4Page1Item1"); // old
+        Locator h4Page1Item2 = mock(Locator.class, "h4Page1Item2"); // new, should not be processed
+
+        when(mockH4sPage1.nth(0)).thenReturn(h4Page1Item0);
+        when(h4Page1Item0.textContent()).thenReturn("Page 1 Item 1 闵行");
+        when(h4Page1Item0.locator("a").getAttribute("href")).thenReturn("page1_item1_new.html");
+
+        when(mockH4sPage1.nth(1)).thenReturn(h4Page1Item1);
+        when(h4Page1Item1.textContent()).thenReturn("Page 1 Item 2 OLD 闵行");
+        when(h4Page1Item1.locator("a").getAttribute("href")).thenReturn("page1_item2_old.html"); // This will resolve to oldUrl
+
+        when(mockH4sPage1.nth(2)).thenReturn(h4Page1Item2);
+        when(h4Page1Item2.textContent()).thenReturn("Page 1 Item 3 NEW 闵行");
+        when(h4Page1Item2.locator("a").getAttribute("href")).thenReturn("page1_item3_new_after_old.html");
+        
+        // Call scrape
+        List<ScrapedData> result = dynamicScraperService.scrape();
+
+        // Assertions
+        assertEquals(2, result.size(), "Should have 2 items: Page0/Item1 and Page1/Item1");
+        assertEquals("Page 0 Item 1 闵行", result.get(0).text());
+        assertTrue(result.get(0).url().endsWith("page0_item1.html"));
+        assertEquals("Page 1 Item 1 闵行", result.get(1).text());
+        assertTrue(result.get(1).url().endsWith("page1_item1_new.html"));
+        
+        // Verify that navigate was called for page 0 and page 1
+        verify(mockPage).navigate(argThat(url -> url.endsWith("index.html") || url.contains(DynamicScraperService.BASE_URL + "index.html")));
+        verify(mockPage).navigate(argThat(url -> url.endsWith("index_1.html") || url.contains(DynamicScraperService.BASE_URL + "index_1.html")));
+        // Verify it did not attempt to navigate to further pages or re-navigate unnecessarily
+        verify(mockPage, times(2)).navigate(anyString());
+
+
+        // Verify items processed up to the old one
+        verify(h4Page0Item0, times(1)).textContent();
+        verify(h4Page1Item0, times(1)).textContent();
+        verify(h4Page1Item1, times(1)).textContent(); // This is the "old" item, its textContent is read before the URL check
+        verify(h4Page1Item2, never()).textContent(); // This item after the old one should not be processed
+    }
+
+    @Test
+    void testScrapeFullWhenAllUrlsAreNewAndProcessedIdentifiersExist() {
+        // 1. Pre-populate processedItemIdentifiers with some URLs that won't be encountered
+        Set<String> knownOldUrls = new HashSet<>();
+        knownOldUrls.add("https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/very_old_item.html");
+        ReflectionTestUtils.setField(dynamicScraperService, "processedItemIdentifiers", knownOldUrls);
+
+        ReflectionTestUtils.setField(dynamicScraperService, "searchPagesSize", 0); // Only page 0
+
+        // Mock Playwright to return items whose URLs are *different* from processedItemIdentifiers
+        when(mockH4sLocator.count()).thenReturn(2); // Two new items on page 0
+        Locator h4Item0 = mock(Locator.class, "h4Item0");
+        Locator h4Item1 = mock(Locator.class, "h4Item1");
+
+        when(mockH4sLocator.nth(0)).thenReturn(h4Item0);
+        when(h4Item0.textContent()).thenReturn("New Item 1 闵行");
+        when(h4Item0.locator("a").getAttribute("href")).thenReturn("new_item1.html");
+
+        when(mockH4sLocator.nth(1)).thenReturn(h4Item1);
+        when(h4Item1.textContent()).thenReturn("New Item 2 闵行");
+        when(h4Item1.locator("a").getAttribute("href")).thenReturn("new_item2.html");
+
+        // Call scrape
+        List<ScrapedData> result = dynamicScraperService.scrape();
+
+        // Assertions
+        assertEquals(2, result.size(), "Should contain all new items from page 0");
+        assertEquals("New Item 1 闵行", result.get(0).text());
+        assertTrue(result.get(0).url().endsWith("new_item1.html"));
+        assertEquals("New Item 2 闵行", result.get(1).text());
+        assertTrue(result.get(1).url().endsWith("new_item2.html"));
+
+        // Verify navigation occurred for page 0
+        verify(mockPage, times(1)).navigate(anyString());
+    }
+
+    @Test
+    void testProcessedIdentifiersUpdatedCorrectly() {
+        // 1. Set an initial state for cachedScrapedData (n-1 scrape results)
+        List<ScrapedData> initialCachedItems = new ArrayList<>();
+        String oldUrl1 = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/old_url1.html";
+        initialCachedItems.add(new ScrapedData("Old Text 1", oldUrl1, "old_date1"));
+        String oldUrl2 = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/old_url2.html";
+        initialCachedItems.add(new ScrapedData("Old Text 2", oldUrl2, "old_date2"));
+        ReflectionTestUtils.setField(dynamicScraperService, "cachedScrapedData", new ArrayList<>(initialCachedItems));
+        ReflectionTestUtils.setField(dynamicScraperService, "processedItemIdentifiers", new HashSet<>());
+
+        // 2. Mock Playwright to return a *new* list of items for the current scrape (nth scrape)
+        String newHref = "new_url.html";
+        String newAbsUrl = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/" + newHref;
+
+        when(mockH4sLocator.count()).thenReturn(1);
+        when(mockH4sLocator.nth(0)).thenReturn(mockH4Locator);
+        when(mockH4Locator.textContent()).thenReturn("New Text 闵行");
+        when(mockH4Locator.locator("a").getAttribute("href")).thenReturn(newHref);
+
+        // 3. Call dynamicScraperService.scrape()
+        List<ScrapedData> resultFromScrape = dynamicScraperService.scrape();
+
+        // 4. Assert processedItemIdentifiers
+        @SuppressWarnings("unchecked")
+        Set<String> processedIds = (Set<String>) ReflectionTestUtils.getField(dynamicScraperService, "processedItemIdentifiers");
+        assertNotNull(processedIds);
+        assertEquals(2, processedIds.size(), "processedItemIdentifiers should contain URLs from the initial cachedScrapedData");
+        assertTrue(processedIds.contains(oldUrl1));
+        assertTrue(processedIds.contains(oldUrl2));
+
+        // 5. Assert the new cache state (getLatestScrapedData)
+        List<ScrapedData> currentCache = dynamicScraperService.getLatestScrapedData();
+        assertNotNull(currentCache);
+        assertEquals(1, currentCache.size(), "Cache should now contain only the newly scraped item");
+        assertEquals("New Text 闵行", currentCache.get(0).text());
+        assertEquals(newAbsUrl, currentCache.get(0).url());
+
+        // 6. Assert the returned list from scrape() is the new data
+        assertEquals(1, resultFromScrape.size());
+        assertEquals(newAbsUrl, resultFromScrape.get(0).url());
     }
 }
