@@ -12,12 +12,13 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -82,31 +83,38 @@ public class DynamicScraperService {
 
     private void writeStaticHtml(String output) {
         StringBuilder html = new StringBuilder();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT+8"));
+        String formattedDate = sdf.format(new Date());
         html.append("""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>上海市闵行区人民政府征收土地方案公告</title>
-                        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
-                        <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
-                        <style>
-                            table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; }
-                            th { cursor: pointer; background-color: #f9f9f9; }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>上海市闵行区人民政府征收土地方案公告</h1>
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <meta charset="UTF-8">
+                                <title>上海市闵行区人民政府征收土地方案公告</title>
+                                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.min.css">
+                                <script src="https://unpkg.com/tablesort@5.2.1/dist/tablesort.min.js"></script>
+                                <style>
+                                    table, th, td { border: 1px solid #ccc; border-collapse: collapse; padding: 8px; }
+                                    th { cursor: pointer; background-color: #f9f9f9; }
+                                </style>
+                            </head>
+                            <body>
+                        """)
+                .append("<h1>上海市闵行区人民政府征收土地方案公告 最近更新时间: ")
+                .append(formattedDate)
+                .append("</h1>")
+                .append("""
                         <table id="sortableTable">
-                            <thead>
-                                <tr>
-                                    <th>公告</th>
-                                    <th>日期</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                """);
-        linksDate.entrySet().stream().sorted(Map.Entry.<String, String>comparingByValue().reversed()).forEach(entry->{
+                                    <thead>
+                                        <tr>
+                                            <th>公告</th>
+                                            <th>日期</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        """);
+        linksDate.entrySet().stream().sorted(Map.Entry.<String, String>comparingByValue().reversed()).forEach(entry -> {
             String text = entry.getKey();
             String date = entry.getValue();
             String url = linksDate.get(text);
