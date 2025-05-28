@@ -25,16 +25,28 @@ import java.util.regex.Pattern;
 public class DynamicScraperService {
 
     private static final String BASE_URL = "https://hd.ghzyj.sh.gov.cn/2017/zdxxgk/";
-
-    @Value("${search.pages-size:-30}")
-    private int searchPagesSize;
-
     private static final String KEYWORD = "闵行";
-
     @Getter
     private final Map<String, String> matchedLinks = new HashMap<>();
     @Getter
     private final Map<String, String> linksDate = new HashMap<>();
+    @Value("${search.pages-size:-30}")
+    private int searchPagesSize;
+
+    private static String extractDateFromUrl(String url) {
+        // Regex to match tYYYYMMDD_ pattern
+        Pattern pattern = Pattern.compile("t(\\d{4})(\\d{2})(\\d{2})_");
+        Matcher matcher = pattern.matcher(url);
+
+        if (matcher.find()) {
+            String year = matcher.group(1);
+            String month = matcher.group(2);
+            String day = matcher.group(3);
+            return year + "年" + month + "月" + day + "日";
+        }
+
+        return "Unknown Date";
+    }
 
     public void scrape() {
         matchedLinks.clear();
@@ -114,15 +126,22 @@ public class DynamicScraperService {
                                     </thead>
                                     <tbody>
                         """);
-        linksDate.entrySet().stream().sorted(Map.Entry.<String, String>comparingByValue().reversed()).forEach(entry -> {
-            String text = entry.getKey();
-            String date = entry.getValue();
-            String url = linksDate.get(text);
-            html.append("<tr>")
-                    .append("<td><a href=\"").append(url).append("\" target=\"_blank\">").append(text).append("</a></td>")
-                    .append("<td>").append(date).append("</td>")
-                    .append("</tr>");
-        });
+        linksDate.entrySet().stream()
+                .sorted((e1, e2) -> {
+                    // desc by date
+                    int valueCompare = e2.getValue().compareTo(e1.getValue());
+                    // desc by key
+                    return (valueCompare != 0) ? valueCompare : e2.getKey().compareTo(e1.getKey());
+                })
+                .forEach(entry -> {
+                    String text = entry.getKey();
+                    String date = entry.getValue();
+                    String url = linksDate.get(text);
+                    html.append("<tr>")
+                            .append("<td><a href=\"").append(url).append("\" target=\"_blank\">").append(text).append("</a></td>")
+                            .append("<td>").append(date).append("</td>")
+                            .append("</tr>");
+                });
 
         html.append("""
                     </tbody>
@@ -148,20 +167,5 @@ public class DynamicScraperService {
         } catch (Exception e) {
             log.error("Failed to write static dashboard HTML: {}", e.getMessage(), e);
         }
-    }
-
-    private static String extractDateFromUrl(String url) {
-        // Regex to match tYYYYMMDD_ pattern
-        Pattern pattern = Pattern.compile("t(\\d{4})(\\d{2})(\\d{2})_");
-        Matcher matcher = pattern.matcher(url);
-
-        if (matcher.find()) {
-            String year = matcher.group(1);
-            String month = matcher.group(2);
-            String day = matcher.group(3);
-            return year + "年" + month + "月" + day + "日";
-        }
-
-        return "Unknown Date";
     }
 }
