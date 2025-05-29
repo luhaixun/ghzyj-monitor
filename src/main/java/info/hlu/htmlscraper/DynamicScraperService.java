@@ -136,7 +136,7 @@ public class DynamicScraperService {
                 .forEach(entry -> {
                     String text = entry.getKey();
                     String date = entry.getValue();
-                    String url = linksDate.get(text);
+                    String url = matchedLinks.get(text);
                     html.append("<tr>")
                             .append("<td><a href=\"").append(url).append("\" target=\"_blank\">").append(text).append("</a></td>")
                             .append("<td>").append(date).append("</td>")
