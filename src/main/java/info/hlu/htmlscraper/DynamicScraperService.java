@@ -50,46 +50,60 @@ public class DynamicScraperService {
 
     public void scrape() {
         matchedLinks.clear();
-        try (Playwright playwright = Playwright.create()) {
-            Browser browser = playwright.firefox().launch(new BrowserType.LaunchOptions().setHeadless(true));
-            BrowserContext context = browser.newContext(new Browser.NewContextOptions()
-                    .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-                    .setViewportSize(1920, 1080)
-            );
-            Page page = context.newPage();
+        Runnable scrapingTask = () -> {
+            try (Playwright playwright = Playwright.create()) {
+                Browser browser = playwright.firefox().launch(new BrowserType.LaunchOptions().setHeadless(true));
+                BrowserContext context = browser.newContext(new Browser.NewContextOptions()
+                        .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                        .setViewportSize(1920, 1080)
+                );
+                Page page = context.newPage();
 
-            for (int pageCount = 0; pageCount <= searchPagesSize; pageCount++) {
-                String url = pageCount == 0 ? BASE_URL + "index.html" : BASE_URL + "index_" + pageCount + ".html";
-                long start = System.currentTimeMillis();
-                page.navigate(url);
-                page.waitForLoadState(LoadState.NETWORKIDLE);
-                log.debug("Paring page {} cost {} ms", pageCount, System.currentTimeMillis() - start);
-                Locator h4s = page.locator("xpath=/html/body/div[2]/div[3]/div/div/div/div/div[2]/h4");
+                for (int pageCount = 0; pageCount <= searchPagesSize; pageCount++) {
+                    String url = pageCount == 0 ? BASE_URL + "index.html" : BASE_URL + "index_" + pageCount + ".html";
+                    long start = System.currentTimeMillis();
+                    page.navigate(url);
+                    page.waitForLoadState(LoadState.NETWORKIDLE);
+                    log.debug("Paring page {} cost {} ms", pageCount, System.currentTimeMillis() - start);
+                    Locator h4s = page.locator("xpath=/html/body/div[2]/div[3]/div/div/div/div/div[2]/h4");
 
-                int count = h4s.count();
-                int foundLinks = 0;
-                for (int j = 0; j < count; j++) {
-                    Locator h4 = h4s.nth(j);
-                    String text = h4.textContent();
-                    // fetch all or filter by keyword
-                    if (!StringUtils.hasText(KEYWORD) || text.contains(KEYWORD)) {
-                        Locator link = h4.locator("a");
-                        String href = link.getAttribute("href");
-                        String absUrl = URI.create(BASE_URL).resolve(href).toString();
-                        matchedLinks.put(text, absUrl);
-                        linksDate.put(text, extractDateFromUrl(href));
-                        foundLinks++;
+                    int count = h4s.count();
+                    int foundLinks = 0;
+                    for (int j = 0; j < count; j++) {
+                        Locator h4 = h4s.nth(j);
+                        String text = h4.textContent();
+                        // fetch all or filter by keyword
+                        if (!StringUtils.hasText(KEYWORD) || text.contains(KEYWORD)) {
+                            Locator link = h4.locator("a");
+                            String href = link.getAttribute("href");
+                            String absUrl = URI.create(BASE_URL).resolve(href).toString();
+                            matchedLinks.put(text, absUrl);
+                            linksDate.put(text, extractDateFromUrl(href));
+                            foundLinks++;
+                        }
                     }
+                    log.debug("Found matching links {} out of {} from page {}", foundLinks, count, pageCount);
                 }
-                log.debug("Found matching links {} out of {} from page {}", foundLinks, count, pageCount);
-            }
-            log.info("Scraping complete. Found {} matched links.", matchedLinks.size());
+                log.info("Scraping complete. Found {} matched links.", matchedLinks.size());
 
-            browser.close();
-            writeStaticHtml("docs/dashboard.html");
-            System.exit(0);
-        } catch (Exception e) {
-            log.error("Scraping failed. error: {}", e.getMessage());
+                browser.close();
+                writeStaticHtml("docs/dashboard.html");
+                System.exit(0);
+            } catch (Exception e) {
+                log.error("Scraping failed. error: {}", e.getMessage());
+            }
+        };
+        Thread thread = new Thread(scrapingTask);
+        thread.start();
+        try {
+            thread.join(20 * 60 * 1000); // 20 minutes
+            if (thread.isAlive()) {
+                log.error("Scraping timed out after 20 minutes.");
+                thread.interrupt();
+            }
+        } catch (InterruptedException e) {
+            log.error("Scraping thread was interrupted.");
+            Thread.currentThread().interrupt();
         }
     }
 
