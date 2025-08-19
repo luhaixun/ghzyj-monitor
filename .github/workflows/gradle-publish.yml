@@ -9,7 +9,7 @@ name: Gradle Generate Pages
 
 on:
   schedule:
-    - cron: '0 1,13 * * *'  # 9 am and 9 pm China time
+    - cron: '30 1, 13 * * *'  # 9:30 am
   workflow_dispatch:
 
 jobs:
